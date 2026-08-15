@@ -9,6 +9,76 @@ reversed, add a new entry that supersedes it and mark the old one.
 
 ---
 
+## 2026-08-15 (2) — Auto-update
+
+Closing the gap flagged at the end of the v1.0.0 entry. New module `updater.js`, main process
+only, `electron-updater` against the GitHub Releases provider. Full behaviour in
+ARCHITECTURE §7.5; IPC in DATA-FLOW §5.
+
+### 🔴 Caught before shipping: three names for one file
+
+The build's `latest.yml` named the update file `Plan-Ledger-Setup-1.0.1.exe`. The file on disk
+was `Plan Ledger Setup 1.0.1.exe`. GitHub, which rewrites spaces to dots on upload, had stored
+v1.0.0's as `Plan.Ledger.Setup.1.0.0.exe`.
+
+electron-builder space-normalises the name it writes into the update feed but not the file it
+writes to disk, so the feed and the artifact disagreed before GitHub ever saw them. The updater
+would have found the release, read the version, offered the update, and then 404'd fetching the
+installer — a failure that appears only on other people's machines, and only after a release
+looks successful.
+
+**Fix:** explicit `artifactName` for `nsis`, `portable`, `mac` and `dmg`, hyphenated, so disk,
+`latest.yml` and the uploaded asset are the same string. Verified by computing the SHA-512 and
+byte length of the built installer and comparing both against `latest.yml`. Recorded in
+ARCHITECTURE §9 as a rule with the reasoning, because the failure mode is invisible locally.
+
+Related: `latest.yml` itself must be attached to every release. Omitting it does not break that
+release's download — it breaks update checking for everyone already running the app. Also in §9.
+
+### Decisions
+
+- `[DECISION: check automatically, download only on a click]` The installer is 80 MB. Starting
+  that on someone's connection unasked — possibly metered — is rude, and the app has no way to
+  know what it is costing them. `autoDownload = false`; the user clicks. `autoInstallOnAppQuit`
+  stays true so a download they never got round to restarting for is not wasted.
+- `[DECISION: a failed background check says nothing]` Being offline at launch is the common
+  case, not an error worth a banner. Only a check the user explicitly asked for reports its
+  failure. **Alternative not taken:** surfacing every failure, which trains people to ignore the
+  one notice that matters.
+- `[DECISION: detect the three cases that cannot self-install, rather than letting a button
+  fail]` Development, portable `.exe`, and unsigned macOS each check and notify but hand off to
+  the browser for the download. The alternative — an Install button that silently does nothing
+  on macOS because Squirrel discarded the update — is the worse failure, because the user
+  believes they updated.
+- `[DECISION: main re-checks canSelfInstall on download]` The renderer should never offer that
+  action in those builds, but main does not take the renderer's word for what it may do. Costs
+  one branch; keeps the trust boundary meaning what §7 says it means.
+- `[DECISION: the pill is green, not purple]` Purple is the AI light's alone (CLAUDE.md). The
+  update pill is also deliberately quieter than the AI pill — an available update is
+  information, not a state of the tool you are using.
+- `[DECISION: released as v1.0.1]` An updater that has never been published is inert. v1.0.1
+  establishes the baseline feed; the first hop it can actually perform is v1.0.1 → v1.0.2.
+- `[ASSUMPTION: SIGNED_BUILDS stays false]` A constant in `updater.js` gating macOS
+  self-install. It is flipped in the same change that adds real certificates, not before.
+
+### Not verified end to end, and cannot yet be
+
+An update has never actually installed itself, because doing so needs two consecutive releases
+that both contain the updater. v1.0.0 has none, so the first genuinely testable hop is
+v1.0.1 → v1.0.2. What *was* verified: the packaged build runs past the check window against
+live GitHub without error, `latest.yml`'s SHA-512 and byte length match the built installer
+exactly, and `electron-updater` is present in the 2.2 MB asar. **The install-and-relaunch path
+should be exercised by hand when v1.0.2 is cut.**
+
+`[DECISION: electron-updater over a hand-rolled check]` A hand-rolled "is there a newer tag"
+check plus a browser hand-off would have been perhaps 40 lines and no dependency. Rejected
+because it can never do the actual install, and the differential download, SHA-512 verification
+and staged-install-on-quit are the parts that are genuinely fiddly to get right. The dependency
+is main-process only and adds 0 production vulnerabilities (`npm audit --omit=dev` clean; the
+14 reported vulnerabilities are all in electron-builder's dev tree).
+
+---
+
 ## 2026-08-15 — v1.0.0 released
 
 Finished the release that was interrupted mid-way on 2026-08-14. Yesterday's state: code

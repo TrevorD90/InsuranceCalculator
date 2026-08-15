@@ -166,6 +166,26 @@ body {
 .ai-dot[data-state="checking"]{ background: var(--ai); animation: pulse 1.05s ease-in-out infinite; }
 @keyframes pulse { 0%,100% { opacity: .25; } 50% { opacity: 1; } }
 
+/* ---------------------------------------------------------- update notice */
+
+/* Green, never purple — purple belongs to the AI light alone. Deliberately quieter than the
+   AI pill: an available update is information, not a state of the tool you are using. */
+.update-pill {
+  display: inline-flex; align-items: center;
+  height: 26px; padding: 0 11px;
+  background: rgba(79,207,171,.10);
+  border: 1px solid rgba(79,207,171,.45);
+  border-radius: 13px;
+  color: #6FDCBB;
+  font: 500 11px var(--sans);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.update-pill:hover:not(:disabled) { background: rgba(79,207,171,.18); border-color: #4FCFAB; }
+.update-pill:disabled { cursor: default; opacity: .8; }
+/* Downloaded and waiting is the one state worth a little insistence. */
+.update-pill[data-phase="ready"] { background: rgba(79,207,171,.20); border-color: #4FCFAB; color: #8BE8CC; }
+
 /* -------------------------------------------------------------------- buttons */
 
 .btn {
@@ -197,6 +217,36 @@ body {
 
 .btn-ai { border-color: rgba(123,75,216,.55); color: var(--ai); }
 .btn-ai:hover:not(:disabled) { background: rgba(123,75,216,.09); border-color: var(--ai); }
+
+/* For the one action in a group that is the obvious next step — currently "Restart and install". */
+.btn-strong { background: var(--good); border-color: var(--good); color: #fff; }
+.btn-strong:hover:not(:disabled) { background: #0B7A61; border-color: #0B7A61; }
+
+/* --------------------------------------------------------- updates, settings */
+
+.update-panel { display: grid; gap: 8px; }
+
+.update-line { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.update-version { font-size: 12px; color: var(--ink-2); }
+/* The version number is a fact about the build, so it is set in mono like every other fact. */
+.update-version b { font-family: var(--mono); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+.update-state { font-size: 12px; color: var(--ink-3); text-align: right; }
+.update-state.is-good { color: var(--good); font-weight: 600; }
+.update-state.is-bad  { color: var(--warn); }
+
+.update-bar {
+  height: 5px; border-radius: 3px; overflow: hidden;
+  background: var(--rule-soft);
+}
+.update-bar i { display: block; height: 100%; width: 0; background: var(--good); transition: width .18s linear; }
+
+.update-notes {
+  margin: 0; padding: 8px 10px; max-height: 132px; overflow: auto;
+  background: var(--paper-2); border: 1px solid var(--rule-soft); border-radius: 4px;
+  font: 400 11.5px/1.5 var(--sans);   /* release notes are prose, not a stated figure */
+  color: var(--ink-2);
+  white-space: pre-wrap; word-break: break-word;
+}
 
 /* -------------------------------------------------------------------- layout */
 

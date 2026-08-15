@@ -11,6 +11,7 @@
 const { app, BrowserWindow, ipcMain, dialog, safeStorage, shell, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { initUpdater } = require('./updater');
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const API_VERSION = '2023-06-01';
@@ -384,6 +385,11 @@ nativeTheme.themeSource = 'light';
 
 app.whenReady().then(() => {
   createWindow();
+
+  // A getter, not `win` — the window is rebuilt on macOS `activate`, and the updater must
+  // broadcast to whichever one is alive now, not the one that existed at startup.
+  initUpdater(() => win);
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });

@@ -64,6 +64,7 @@ reason for most of the structural choices below.
 ```
 main.js                  Electron main: window, settings, Claude calls, file dialogs   [CJS]
 preload.js               contextBridge surface — the narrow bridge                     [CJS]
+updater.js               auto-update: check, download, install, capability detection   [CJS]
 src/
   engine.mjs             the cost engine — pure functions, no DOM, no I/O              [ESM]
   plans.mjs              schema, normalizer, validator, the five seed plans            [ESM]
@@ -99,6 +100,7 @@ happily via `<script type="module">`. One file, two runtimes, zero tooling.
 | `src/plans.mjs` | Plan/scenario/household shapes, normalization of partial or AI-extracted input, regulatory validation, seed data | Perform pricing arithmetic |
 | `renderer/app.js` | Application state, event wiring, DOM rendering, formatting | Contain a single line of cost-sharing math |
 | `main.js` | Privilege: key storage, network, filesystem, dialogs | Contain business logic or pricing math |
+| `updater.js` | Update checks, download, install, and deciding whether this build *can* self-install | Touch plans, scenarios or any number the user compares |
 | `preload.js` | Naming the bridge functions | Contain logic of any kind |
 
 **[as-built] One bridge function does not reach main.** `desktop.ui.setZoom` / `getZoom` call
@@ -319,6 +321,35 @@ The only thing that needs Claude is reading a PDF.
 Autosave continuously. Export writes plans + year + computed results to JSON; import reads it
 back. Workspace files are plain JSON and contain no secrets.
 
+### 7.5 Auto-update
+
+`updater.js`, main process only, via `electron-updater` against the GitHub Releases provider.
+The renderer never fetches anything: it receives a state object and renders it.
+
+**Capability detection is the substance of this module.** Three cases cannot self-install, and
+each is detected rather than discovered by the user when a button fails:
+
+| Case | Detected by | Behaviour |
+|---|---|---|
+| Development | `!app.isPackaged` | No check at all — electron-updater throws without a packaged app |
+| Portable `.exe` | `process.env.PORTABLE_EXECUTABLE_DIR` | Check and notify; the download opens in the browser |
+| Unsigned macOS | `platform === 'darwin' && !SIGNED_BUILDS` | Check and notify; Squirrel.Mac discards updates whose signature does not match |
+
+`SIGNED_BUILDS` is a constant in `updater.js`, currently `false`. It is flipped in the same
+change that adds real signing certificates, not before.
+
+Policy decisions, all deliberate:
+
+- **`autoDownload = false`.** An 80 MB download is never started without a click.
+- **`autoInstallOnAppQuit = true`.** Downloaded but not restarted installs on the next quit.
+- **A background check that fails stays silent.** Offline at launch is the common case and is
+  not the user's problem. Only a check the user explicitly asked for reports its failure.
+- **First check is delayed 8s, then every 6 hours.** Nothing about an update is urgent enough
+  to make the window slower to appear.
+
+The version is compared explicitly against `app.getVersion()` rather than trusting
+`checkForUpdates()` to resolve only on a newer version.
+
 ---
 
 ## 8. Documentation contract
@@ -359,8 +390,34 @@ npm test                                     must be green first
 npm run dist:win                             on Windows
 git tag -a vX.Y.Z -m "Plan Ledger vX.Y.Z"
 git push origin master vX.Y.Z
-gh release create vX.Y.Z "dist/Plan Ledger Setup X.Y.Z.exe" "dist/Plan Ledger X.Y.Z.exe" \
+gh release create vX.Y.Z \
+  "dist/Plan-Ledger-Setup-X.Y.Z.exe" \
+  "dist/Plan-Ledger-X.Y.Z-portable.exe" \
+  "dist/Plan-Ledger-Setup-X.Y.Z.exe.blockmap" \
+  "dist/latest.yml" \
   --title "Plan Ledger vX.Y.Z" --notes-file <notes>
+```
+
+**`latest.yml` must be attached to every release.** It is the update feed: `electron-updater`
+fetches it from the newest release to learn the version, filename and SHA-512. A release
+without it does not break that release's download — it breaks *update checking for everyone
+already running the app*, silently, and the failure appears only on other people's machines.
+The `.blockmap` should be attached too; it enables differential downloads.
+
+**Artifact names must not contain spaces.** This is load-bearing, not cosmetic. electron-builder
+writes a space-normalised name (`Plan-Ledger-Setup-1.0.1.exe`) into `latest.yml` while leaving
+the file on disk spaced (`Plan Ledger Setup 1.0.1.exe`), and GitHub rewrites spaces to dots on
+upload (`Plan.Ledger.Setup.1.0.1.exe`) — three different names for one file, and the updater
+404s fetching the installer. The `nsis`/`portable`/`mac`/`dmg` `artifactName` settings in
+`package.json` hyphenate everything so all three agree. Do not remove them.
+
+Note that `package.json`'s `build` block rejects unknown keys — electron-builder validates it
+against a strict schema, so a `"//comment"` key fails the build outright. Explanations go here.
+
+After releasing, verify the feed actually resolves rather than assuming it:
+
+```
+gh release view vX.Y.Z --json assets     # latest.yml present?
 ```
 
 There is no cross-building: each platform's artifacts are built on that platform and uploaded
@@ -385,8 +442,12 @@ Recorded here so they are chosen rather than discovered. User-facing phrasing in
   costs money and an identity, and neither is worth it before the app has users; the cost of
   the omission is that every download looks slightly untrustworthy, which for a tool that asks
   people to enter their insurance details is a real cost, not a cosmetic one.
-- **[as-built] No auto-update.** electron-builder emits `latest.yml`, but no `electron-updater`
-  is wired in and no update feed is published. Users update by downloading the next release.
+- **[as-built] Auto-update installs itself only on installed Windows builds.** The portable
+  `.exe` and macOS both check and notify, then send the user to the download page — see §7.5 for
+  why each case cannot do better. macOS becomes capable the day the builds are signed; the
+  portable build never does, by its nature.
+- **[as-built] v1.0.0 cannot update itself.** It shipped before `updater.js` existed, so anyone
+  running it must download v1.0.1 by hand once. Auto-update covers v1.0.1 onward.
 - **Round-robin interleaving is order-sensitive** — see COST-MODEL §4.7.
 - **[as-built] Ancillary-provider NSA protection is not modelled.** `NSA_PROTECTED` contains
   `er` only. The Act also protects out-of-network anaesthesia, pathology, radiology, laboratory,

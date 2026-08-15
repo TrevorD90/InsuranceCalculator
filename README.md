@@ -22,6 +22,21 @@ npm run dist:mac    # .dmg + .zip
 
 Build on the platform you are targeting, or set up cross-building separately.
 
+## Updating
+
+The installed Windows build checks GitHub for a new version on launch and every six hours, and
+tells you in the top bar when one exists. It never downloads anything until you click — the
+installer is 80 MB and that is your connection, not ours. Nothing about you is sent: the check
+is a request for a version number, with no identifiers and no telemetry.
+
+Two builds check but cannot install for you, and say so rather than offering a button that
+would fail — the **portable .exe**, which is a loose file the app will not overwrite while you
+are running it, and **macOS**, which refuses to install an unsigned update over another. Both
+send you to the download page instead.
+
+Version 1.0.0 shipped before any of this existed, so if you are on it, download 1.0.1 by hand
+once and it will keep itself current from there.
+
 ## What it does
 
 **Left — plans.** One card per plan, five preloaded. The front shows name, monthly premium,

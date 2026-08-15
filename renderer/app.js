@@ -1159,6 +1159,109 @@ function wireTextSize() {
   $('#textLarger').addEventListener('click', () => stepTextScale(1));
 }
 
+/* ================================================================= UPDATES */
+
+/* The renderer decides nothing about updates. It receives a state object from the main process
+   and draws it — which phase, which version, how far along. Every capability question was
+   already answered on the other side of the bridge. */
+
+const UPDATE_CAVEATS = {
+  dev: 'Running from source. Updates apply to installed builds only.',
+  portable:
+    'This is the portable build. It cannot replace itself — a portable .exe is a loose file, ' +
+    'and the app will not overwrite something you are running. New versions open in your browser.',
+  'unsigned-mac':
+    'macOS builds are not code-signed, so macOS will not let one install over another in place. ' +
+    'New versions open in your browser.'
+};
+
+function renderUpdates(s) {
+  if (!s) return;
+
+  const pill = $('#updatePill');
+  const stateLine = $('#updateState');
+  const action = $('#updateActionBtn');
+  const bar = $('#updateBar');
+  const notes = $('#updateNotes');
+  const caveat = $('#updateCaveat');
+
+  $('#updateCurrent').textContent = s.currentVersion || '—';
+
+  // ---- the settings line -------------------------------------------------
+  const line = {
+    idle: 'Not checked yet.',
+    checking: 'Checking…',
+    current: 'Up to date.',
+    available: `Version ${s.newVersion} is available.`,
+    downloading: `Downloading… ${s.percent}%`,
+    ready: `Version ${s.newVersion} is ready to install.`,
+    error: s.error || 'Something went wrong.'
+  }[s.phase] || '';
+  stateLine.textContent = line;
+  stateLine.className = 'update-state' + (s.phase === 'error' ? ' is-bad' : s.phase === 'ready' ? ' is-good' : '');
+
+  // ---- progress ----------------------------------------------------------
+  bar.hidden = s.phase !== 'downloading';
+  $('#updateBarFill').style.width = `${s.phase === 'downloading' ? s.percent : 0}%`;
+
+  // ---- release notes -----------------------------------------------------
+  const showNotes = !!s.notes && (s.phase === 'available' || s.phase === 'ready');
+  notes.hidden = !showNotes;
+  if (showNotes) notes.textContent = s.notes;
+
+  // ---- the one action that makes sense right now -------------------------
+  let label = '';
+  if (s.phase === 'ready') label = 'Restart and install';
+  else if (s.phase === 'available') label = s.canSelfInstall ? `Download ${s.newVersion}` : 'Open the download page';
+  action.hidden = !label;
+  action.textContent = label;
+  action.className = 'btn' + (s.phase === 'ready' ? ' btn-strong' : '');
+
+  $('#updateCheckBtn').disabled = s.phase === 'checking' || s.phase === 'downloading';
+
+  // ---- why installing is unavailable, when it is -------------------------
+  const why = UPDATE_CAVEATS[s.unsupportedReason];
+  caveat.hidden = !why;
+  if (why) caveat.textContent = why;
+
+  // ---- the topbar pill ---------------------------------------------------
+  const pillText = {
+    available: `Update to ${s.newVersion}`,
+    downloading: `Downloading ${s.percent}%`,
+    ready: 'Restart to update'
+  }[s.phase];
+  pill.hidden = !pillText;
+  if (pillText) {
+    pill.textContent = pillText;
+    pill.dataset.phase = s.phase;
+    pill.disabled = s.phase === 'downloading';
+  }
+}
+
+async function updateAction(s) {
+  if (!s) return;
+  if (s.phase === 'ready') { await desktop.updates.install(); return; }
+  if (s.phase !== 'available') return;
+  if (s.canSelfInstall) await desktop.updates.download();
+  else desktop.openExternal(s.releasesUrl);
+}
+
+function wireUpdates() {
+  let current = null;
+
+  const draw = (s) => { current = s; renderUpdates(s); };
+
+  desktop.updates.onChange(draw);
+
+  $('#updateCheckBtn').addEventListener('click', async () => {
+    draw(await desktop.updates.check());
+  });
+  $('#updateActionBtn').addEventListener('click', () => updateAction(current));
+  $('#updatePill').addEventListener('click', () => updateAction(current));
+
+  desktop.updates.status().then(draw).catch(() => {});
+}
+
 /* ================================================================= STARTUP */
 
 function renderAll() {
@@ -1174,6 +1277,11 @@ async function start() {
   wireWorkspace();
   wireToolbar();
   wireTextSize();
+
+  // Updates are the least important thing on screen: if the bridge is missing or an older
+  // build has no updates channel, the rest of the app must come up exactly as before.
+  try { wireUpdates(); }
+  catch (err) { console.warn('Update checking unavailable.', err); }
 
   // The app must render even if the bridge is missing or a handler throws. A failed restore
   // costs the user their autosave; it must never cost them the whole interface.

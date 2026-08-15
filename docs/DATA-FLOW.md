@@ -286,6 +286,27 @@ sequenceDiagram
     R->>P: desktop.workspace.restore()
     P->>M: invoke("workspace:restore")
     M-->>R: {ok, data|null}
+
+    Note over R,X: Updates (updater.js)
+    M->>M: on launch +8s, then every 6h
+    M->>X: GET GitHub Releases → latest.yml
+    X-->>M: version, filename, sha512
+    M-->>R: send("updates:changed", state)
+    Note right of M: silent on failure unless the user asked
+
+    R->>P: desktop.updates.check()
+    P->>M: invoke("updates:check")
+    M-->>R: state {phase, newVersion, canSelfInstall, …}
+
+    R->>P: desktop.updates.download()
+    P->>M: invoke("updates:download")
+    M->>X: GET installer (sha512 verified)
+    M-->>R: send("updates:changed", {phase:"downloading", percent})
+    M-->>R: send("updates:changed", {phase:"ready"})
+
+    R->>P: desktop.updates.install()
+    P->>M: invoke("updates:install")
+    M->>M: quitAndInstall — app exits
 ```
 
 **[as-built] channel names.** `workspace:export` / `workspace:import` are the dialog-backed
@@ -293,6 +314,18 @@ pair; `workspace:autosave` / `workspace:restore` are the silent local pair. `res
 `{ok:true, data:null}` rather than rejecting when no autosave exists, and the renderer wraps
 the call in `try/catch` anyway — a failed restore costs the user their autosave, and must never
 cost them the whole interface.
+
+**[as-built] the update channels.** `updates:status` / `check` / `download` / `install` are
+invoked by the renderer; `updates:changed` is the one push channel, main → renderer, carrying
+the whole state object rather than a delta. The renderer holds the last object it was sent and
+re-renders from it; it derives no update state of its own and decides nothing about capability.
+
+Two properties of that state are what the UI keys off: `phase`
+(`idle | checking | current | available | downloading | ready | error`) and `canSelfInstall`.
+When `canSelfInstall` is false the action button opens the download page in the system browser
+via the existing `shell:open` channel — no new privilege, and no button that would fail.
+`updates:download` re-checks `canSelfInstall` in main rather than trusting the renderer not to
+have offered it.
 
 **The key never crosses the bridge.** `settings:load` returns a masked hint
 (`sk-ant-…abcd`) and a boolean, never the value. `ai:test` and `plans:import` do their work
@@ -347,7 +380,8 @@ Two rules:
 
 | Boundary | Crossed by | Carries | Never carries |
 |---|---|---|---|
-| Renderer ↔ Main | `preload.js` allow-list only | plan data, settings metadata, progress events | the API key, raw fs handles, arbitrary channel names |
+| Renderer ↔ Main | `preload.js` allow-list only | plan data, settings metadata, progress events, update state | the API key, raw fs handles, arbitrary channel names |
 | Main ↔ Anthropic | `fetch` in main | base64 PDF, extraction prompt, key header | anything the user didn't explicitly import |
+| Main ↔ GitHub | `electron-updater` in main | a version check and, on request, an installer download verified by SHA-512 | anything about the user — no telemetry, no identifiers, no plan data |
 | Main ↔ Disk | `fs` in main | encrypted key, autosave, exports | plaintext key (unless `safeStorage` is unavailable — and then the UI says so) |
 | Engine ↔ everything | function calls | plain objects in, plain objects out | side effects of any kind |

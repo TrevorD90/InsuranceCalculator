@@ -29,6 +29,10 @@
       <span class="ai-word">AI</span>
       <span class="ai-text" id="aiText">Not connected</span>
     </button>
+    <!-- Hidden unless there is genuinely something to act on. An update notice that is always
+         present is an update notice nobody reads. -->
+    <button class="update-pill" id="updatePill" type="button" hidden aria-live="polite"></button>
+
     <button class="btn btn-quiet" id="importWsBtn" type="button">Import</button>
     <button class="btn btn-quiet" id="exportWsBtn" type="button">Export</button>
     <button class="btn btn-icon" id="settingsBtn" type="button" aria-label="Settings" title="Settings">
@@ -128,6 +132,23 @@
         <button class="btn btn-quiet" id="clearKeyBtn" type="button">Remove key</button>
       </div>
       <div class="test-result" id="testResult" role="status"></div>
+
+      <hr class="rule">
+
+      <h3 class="eyebrow">Updates</h3>
+      <div class="update-panel">
+        <div class="update-line">
+          <span class="update-version">Plan Ledger <b id="updateCurrent">—</b></span>
+          <span class="update-state" id="updateState">Not checked yet.</span>
+        </div>
+        <div class="update-bar" id="updateBar" hidden><i id="updateBarFill"></i></div>
+        <pre class="update-notes" id="updateNotes" hidden></pre>
+        <div class="modal-actions">
+          <button class="btn" id="updateCheckBtn" type="button">Check for updates</button>
+          <button class="btn" id="updateActionBtn" type="button" hidden></button>
+        </div>
+        <p class="field-note" id="updateCaveat" hidden></p>
+      </div>
 
       <hr class="rule">
 

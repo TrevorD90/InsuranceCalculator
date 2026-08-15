@@ -1,6 +1,6 @@
 {
   "name": "plan-ledger",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Compare health insurance plans by simulating a full year of care against each one.",
   "main": "main.js",
   "author": "",
@@ -12,6 +12,9 @@
     "dist:win": "electron-builder --win",
     "dist:mac": "electron-builder --mac"
   },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
   "devDependencies": {
     "electron": "^32.0.0",
     "electron-builder": "^25.0.0"
@@ -19,8 +22,18 @@
   "build": {
     "appId": "com.planledger.app",
     "productName": "Plan Ledger",
-    "files": ["main.js", "preload.js", "src/**", "renderer/**", "package.json"],
+    "files": ["main.js", "preload.js", "updater.js", "src/**", "renderer/**", "package.json"],
+    "publish": [
+      { "provider": "github", "owner": "TrevorD90", "repo": "InsuranceCalculator" }
+    ],
     "win": { "target": ["nsis", "portable"] },
-    "mac": { "target": ["dmg", "zip"], "category": "public.app-category.finance" }
+    "nsis": { "artifactName": "Plan-Ledger-Setup-${version}.${ext}" },
+    "portable": { "artifactName": "Plan-Ledger-${version}-portable.${ext}" },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.finance",
+      "artifactName": "Plan-Ledger-${version}-mac.${ext}"
+    },
+    "dmg": { "artifactName": "Plan-Ledger-${version}.${ext}" }
   }
 }

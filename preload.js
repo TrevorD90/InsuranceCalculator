@@ -46,6 +46,20 @@ contextBridge.exposeInMainWorld('desktop', {
     restore: () => ipcRenderer.invoke('workspace:restore')
   },
 
+  // Checking, downloading and installing all happen in the main process. What crosses here is
+  // a state object to render and four verbs to trigger — never a URL to fetch or a file to write.
+  updates: {
+    status: () => ipcRenderer.invoke('updates:status'),
+    check: () => ipcRenderer.invoke('updates:check'),
+    download: () => ipcRenderer.invoke('updates:download'),
+    install: () => ipcRenderer.invoke('updates:install'),
+    onChange: (fn) => {
+      const handler = (_e, payload) => fn(payload);
+      ipcRenderer.on('updates:changed', handler);
+      return () => ipcRenderer.removeListener('updates:changed', handler);
+    }
+  },
+
   openExternal: (url) => ipcRenderer.invoke('shell:open', url),
   platform: process.platform
 });
