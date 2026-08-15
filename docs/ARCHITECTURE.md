@@ -346,6 +346,29 @@ npm run dist:win             electron-builder → nsis + portable
 npm run dist:mac             electron-builder → dmg + zip
 ```
 
+`dist/` is git-ignored. Build artifacts reach users through GitHub Releases, never the repo.
+
+### Releasing
+
+electron-builder takes the version from `package.json`. That version, the git tag and the
+release name must agree, and the tag must point at the commit the binaries were built from —
+otherwise the download and the source stop being the same program.
+
+```
+npm test                                     must be green first
+npm run dist:win                             on Windows
+git tag -a vX.Y.Z -m "Plan Ledger vX.Y.Z"
+git push origin master vX.Y.Z
+gh release create vX.Y.Z "dist/Plan Ledger Setup X.Y.Z.exe" "dist/Plan Ledger X.Y.Z.exe" \
+  --title "Plan Ledger vX.Y.Z" --notes-file <notes>
+```
+
+There is no cross-building: each platform's artifacts are built on that platform and uploaded
+to the same release. macOS artifacts are absent from a release until someone builds them on a
+Mac, and the release notes say so rather than leaving the omission to be discovered.
+
+Neither platform's binaries are signed — see §10.
+
 ## 10. Known limitations carried deliberately
 
 Recorded here so they are chosen rather than discovered. User-facing phrasing in README.
@@ -356,6 +379,14 @@ Recorded here so they are chosen rather than discovered. User-facing phrasing in
   possible years. A good/typical/bad-year model would be the more honest tool.
 - **Tiered networks flattened to three tiers.** Real plans occasionally have more.
 - **No employer premium contribution field.** The user enters their own share.
+- **[as-built] Released binaries are unsigned.** No Windows Authenticode certificate, no Apple
+  Developer ID, so Windows SmartScreen warns "unrecognized app" and macOS Gatekeeper will refuse
+  a downloaded build outright. Release notes state this and give the click-through. Signing
+  costs money and an identity, and neither is worth it before the app has users; the cost of
+  the omission is that every download looks slightly untrustworthy, which for a tool that asks
+  people to enter their insurance details is a real cost, not a cosmetic one.
+- **[as-built] No auto-update.** electron-builder emits `latest.yml`, but no `electron-updater`
+  is wired in and no update feed is published. Users update by downloading the next release.
 - **Round-robin interleaving is order-sensitive** — see COST-MODEL §4.7.
 - **[as-built] Ancillary-provider NSA protection is not modelled.** `NSA_PROTECTED` contains
   `er` only. The Act also protects out-of-network anaesthesia, pathology, radiology, laboratory,

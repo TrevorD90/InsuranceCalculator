@@ -9,6 +9,43 @@ reversed, add a new entry that supersedes it and mark the old one.
 
 ---
 
+## 2026-08-15 — v1.0.0 released
+
+Finished the release that was interrupted mid-way on 2026-08-14. Yesterday's state: code
+pushed, `npm run dist:win` artifacts sitting in `dist/`, **no tag and no release**. The
+binaries were verified still newer than every source file before being published, so what is
+downloadable is what is tagged.
+
+Tag `v1.0.0` → commit `b6ee7a7`. Both Windows artifacts attached, byte sizes confirmed against
+the local builds after upload.
+
+- `[DECISION: the release ships Windows only]` No Mac was available to build on, and
+  electron-builder does not cross-build a `.dmg` from Windows. Rather than hold the release or
+  ship an untested macOS artifact, the notes state plainly that macOS builds are not attached
+  and how to produce them. **Alternative not taken:** a CI matrix on GitHub Actions building
+  both platforms on tag push. That is the right long-term answer and would have removed this
+  decision entirely, but setting it up was not what the session was for.
+- `[DECISION: binaries ship unsigned]` Signing needs a purchased Authenticode certificate and
+  an Apple Developer ID. Neither exists. The notes tell users what SmartScreen will say and
+  what to click. Recorded in ARCHITECTURE §10 as a limitation carried deliberately, not an
+  oversight — for an app that asks for insurance details, an "unrecognized publisher" banner is
+  a genuine cost.
+- `[DECISION: published, not drafted]` Created as a public non-prerelease. v1.0.0 with 40 green
+  assertions is not a preview, and a draft nobody promotes is indistinguishable from no release.
+- `[ASSUMPTION: 1.0.0 as it stands in package.json is the intended version]` It was already
+  `1.0.0` and the artifacts were built under that name; the tag was made to match rather than
+  bumping anything.
+- **Release procedure written down** in ARCHITECTURE §9, including the invariant that
+  `package.json` version, git tag and release name must agree and the tag must point at the
+  build commit. It was reconstructed from context this time; it should not have to be again.
+- **README corrected** — it advertised 29 assertions; the suite is 40. Committed separately
+  before tagging so the tagged tree is accurate.
+
+**Open for review:** no auto-update path exists (ARCHITECTURE §10). Users who install v1.0.0
+have no way to learn v1.0.1 happened. Worth deciding before the second release, not after.
+
+---
+
 ## 2026-08-14 (6) — Coverage terms, and a real bug in the three-state preview
 
 User report: *"when I put it in out of network, all the plans said they paid the full amount…
