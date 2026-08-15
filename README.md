@@ -10,7 +10,7 @@ Electron. No bundler, no build step. Runs on Windows and macOS.
 ```
 npm install
 npm start        # launch the app
-npm test         # run the cost-engine tests — 29 assertions, no framework
+npm test         # run the cost-engine tests — 40 assertions, no framework
 ```
 
 Installers:
