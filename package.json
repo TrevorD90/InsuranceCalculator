@@ -1,0 +1,26 @@
+{
+  "name": "plan-ledger",
+  "version": "1.0.0",
+  "description": "Compare health insurance plans by simulating a full year of care against each one.",
+  "main": "main.js",
+  "author": "",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"test/*.test.mjs\"",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.planledger.app",
+    "productName": "Plan Ledger",
+    "files": ["main.js", "preload.js", "src/**", "renderer/**", "package.json"],
+    "win": { "target": ["nsis", "portable"] },
+    "mac": { "target": ["dmg", "zip"], "category": "public.app-category.finance" }
+  }
+}

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'">
+<title>Plan Ledger</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"></span>
+    <span class="brand-name">Plan Ledger</span>
+    <span class="brand-sub">what a year of care actually costs</span>
+  </div>
+
+  <div class="topbar-actions">
+    <div class="text-size" role="group" aria-label="Text size">
+      <span class="ts-label">Text size</span>
+      <button class="ts-btn" id="textSmaller" type="button" aria-label="Make text smaller" title="Make text smaller">&larr;</button>
+      <span class="ts-value" id="textSizeValue" aria-live="polite">100%</span>
+      <button class="ts-btn" id="textLarger" type="button" aria-label="Make text larger" title="Make text larger">&rarr;</button>
+    </div>
+
+    <button class="ai-pill" id="aiPill" type="button" aria-live="polite" title="Open Claude settings">
+      <span class="ai-dot" id="aiDot" data-state="off"></span>
+      <span class="ai-word">AI</span>
+      <span class="ai-text" id="aiText">Not connected</span>
+    </button>
+    <button class="btn btn-quiet" id="importWsBtn" type="button">Import</button>
+    <button class="btn btn-quiet" id="exportWsBtn" type="button">Export</button>
+    <button class="btn btn-icon" id="settingsBtn" type="button" aria-label="Settings" title="Settings">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <path d="M12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7z M19.4 13a7.9 7.9 0 0 0 0-2l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-1.7-1L15 3.5h-4l-.3 2.6a7.8 7.8 0 0 0-1.7 1l-2.4-1-2 3.4L4.6 11a7.9 7.9 0 0 0 0 2l-2 1.5 2 3.4 2.4-1c.5.4 1.1.8 1.7 1l.3 2.6h4l.3-2.6c.6-.2 1.2-.6 1.7-1l2.4 1 2-3.4z"
+              fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <!-- ============================================ LEFT — plans =========== -->
+  <section class="column column-plans" aria-labelledby="plansHead">
+    <div class="column-head">
+      <h2 class="eyebrow" id="plansHead">Plans</h2>
+      <div class="head-buttons">
+        <button class="btn btn-sm btn-ai" id="readPdfBtn" type="button" disabled>Read plan documents</button>
+        <button class="btn btn-sm" id="addPlanBtn" type="button">Add blank</button>
+        <button class="btn btn-sm" id="loadSeedBtn" type="button">Load my five</button>
+      </div>
+    </div>
+    <div id="importStatus" class="import-status" hidden></div>
+    <div id="planList" class="plan-list"></div>
+  </section>
+
+  <!-- ============================================ MIDDLE — year ========== -->
+  <section class="column column-year" aria-labelledby="yearHead">
+    <div class="column-head">
+      <h2 class="eyebrow" id="yearHead">Your year of care</h2>
+      <button class="btn btn-sm" id="addScenarioBtn" type="button">Add care</button>
+    </div>
+
+    <div class="household" id="household">
+      <span class="eyebrow eyebrow-sm">Household</span>
+      <div class="household-chips" id="householdChips"></div>
+      <button class="btn btn-xs" id="addMemberBtn" type="button">+ member</button>
+    </div>
+
+    <p class="column-note">
+      Set what the provider charges and how often it happens. Drag a slider and watch every
+      plan's total move. Visits are interleaved across the year, not batched, because order
+      changes who pays what.
+    </p>
+
+    <div id="scenarioList" class="scenario-list"></div>
+
+    <div class="year-total">
+      <span class="eyebrow">Total charges modelled</span>
+      <span class="money money-lg" id="totalBilled">$0</span>
+    </div>
+  </section>
+
+  <!-- ============================================ RIGHT — totals ========= -->
+  <section class="column column-totals" aria-labelledby="totalsHead">
+    <div class="column-head">
+      <h2 class="eyebrow" id="totalsHead">Totals — cheapest first</h2>
+    </div>
+    <div id="resultList" class="result-list"></div>
+  </section>
+
+</main>
+
+<!-- ================================================ settings modal ======== -->
+<div class="modal-veil" id="settingsModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="modal-head">
+      <h2 id="settingsTitle">Settings</h2>
+      <button class="btn btn-quiet" id="closeSettings" type="button">Close</button>
+    </div>
+
+    <div class="modal-body">
+      <h3 class="eyebrow eyebrow-ai">Claude connection</h3>
+      <p class="field-note">
+        Reading a plan PDF sends that file to Anthropic's API using your own key. Everything
+        else in this app runs offline — all the arithmetic, all the comparison. Your key is
+        encrypted by your operating system before it is written to disk, and the app window
+        never sees it.
+      </p>
+
+      <label class="field">
+        <span class="field-label">API key</span>
+        <input type="password" id="apiKeyInput" placeholder="sk-ant-..." autocomplete="off" spellcheck="false">
+        <span class="field-hint" id="keyHint"></span>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Model</span>
+        <input type="text" id="modelInput" spellcheck="false" placeholder="claude-sonnet-5">
+        <span class="field-hint">Default <code>claude-sonnet-5</code>. Editable — any current model id works.</span>
+      </label>
+
+      <div class="modal-actions">
+        <button class="btn btn-ai" id="testBtn" type="button">Test connection</button>
+        <button class="btn" id="saveKeyBtn" type="button">Save</button>
+        <button class="btn btn-quiet" id="clearKeyBtn" type="button">Remove key</button>
+      </div>
+      <div class="test-result" id="testResult" role="status"></div>
+
+      <hr class="rule">
+
+      <h3 class="eyebrow">About the numbers</h3>
+      <p class="field-note">
+        Cost sharing is calculated on the plan's <b>allowed amount</b>, never the billed charge.
+        Each plan carries its own two assumptions for turning one into the other — open a plan
+        card to change them.
+      </p>
+      <p class="field-note">
+        Balance billing and non-covered services are shown separately and in a warning colour
+        because, unlike everything else, <b>nothing caps them</b> — they never count toward the
+        deductible or the out-of-pocket maximum.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================ ledger modal ========= -->
+<div class="modal-veil" id="ledgerModal" hidden>
+  <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="ledgerTitle">
+    <div class="modal-head">
+      <h2 id="ledgerTitle">Per-visit ledger</h2>
+      <button class="btn btn-quiet" id="closeLedger" type="button">Done</button>
+    </div>
+    <div class="modal-body" id="ledgerBody"></div>
+  </div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
