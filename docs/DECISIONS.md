@@ -9,6 +9,47 @@ reversed, add a new entry that supersedes it and mark the old one.
 
 ---
 
+## 2026-08-15 (3) — The repository is public, because the updater needs it to be
+
+Auto-update was built, released as v1.0.1, and then found to be inert: **the repository was
+private**, so `electron-updater`'s anonymous fetch of `latest.yml` 404'd on every check. The
+same fact meant the v1.0.0 and v1.0.1 download links worked only for the owner.
+
+`[DECISION: user's call, explicitly asked for]` This was not a judgment call to make on
+someone's behalf. Making a repository public is effectively irreversible — the source, the full
+git history and this decision log all become permanently readable, and anything already fetched
+cannot be recalled. Presented with the four real options (public repo / separate public releases
+repo / leave it inert / generic host on S3-style storage), **the owner chose to make the repo
+public.**
+
+`[DECISION: never embed a token]` The technically available alternative — a GitHub PAT with
+`repo` scope in the publish config — was rejected outright and is not offered as a future
+option. It ships in the asar in plain text; extracting it is trivial; it grants write access to
+the repository. Recorded in ARCHITECTURE §7.5 so that a later reader who finds auto-update
+broken does not "fix" it that way.
+
+**Checked before flipping:** every file ever committed across all history, and a scan for
+API-key-, token-, AWS-key- and private-key-shaped strings in both the working tree and every
+reachable commit. Nothing found. The only personal detail in the tree is the Windows-user path
+in `CLAUDE.md`'s reference links (`C:\Users\seren\Downloads\…`), which points at local files
+that exist on one machine; the commit author name and email were already in the history and are
+normal for a public repo.
+
+**Verified after flipping, unauthenticated, exactly as the shipped app will do it:**
+
+| Check | Result |
+|---|---|
+| `GET …/releases/download/v1.0.1/latest.yml` | 200, correct YAML |
+| Filename inside the feed resolves to a real asset | 200, `Content-Length` 80368351 |
+| Feed SHA-512 vs. the built installer | identical |
+| `releases.atom` newest entry | `v1.0.1` |
+| Packaged build run past its 8s check | no error, no crash |
+
+Still not verified end to end: the download-and-relaunch path, which needs two consecutive
+releases both containing the updater. First testable hop remains v1.0.1 → v1.0.2.
+
+---
+
 ## 2026-08-15 (2) — Auto-update
 
 Closing the gap flagged at the end of the v1.0.0 entry. New module `updater.js`, main process

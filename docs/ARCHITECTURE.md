@@ -326,6 +326,14 @@ back. Workspace files are plain JSON and contain no secrets.
 `updater.js`, main process only, via `electron-updater` against the GitHub Releases provider.
 The renderer never fetches anything: it receives a state object and renders it.
 
+**This requires the repository to stay public.** The provider fetches `latest.yml` and the
+installer over unauthenticated HTTPS. Against a private repo every check 404s, and the only fix
+would be embedding a GitHub token with `repo` scope in the app — which ships in the asar in
+plain text and hands write access to the repository to anyone who downloads the app. That is
+not an acceptable trade at any point, so if the repo ever goes private again, auto-update must
+move to a separate public releases repo or a generic static host, not grow a token. See
+DECISIONS, 2026-08-15 (3).
+
 **Capability detection is the substance of this module.** Three cases cannot self-install, and
 each is detected rather than discovered by the user when a button fails:
 
